@@ -44,6 +44,15 @@ process_virtual_memory_low
 FROM sys.dm_os_process_memory;
 ```
 
+## SQL Server page life expectancy
+
+```
+SELECT
+CASE instance_name WHEN '' THEN 'Overall' ELSE instance_name END AS NUMA_Node, cntr_value AS [Page life expectancy]
+FROM sys.dm_os_performance_counters    
+WHERE counter_name = 'Page life expectancy';
+```
+
 ## SQL Server disk setup
 
 ```
