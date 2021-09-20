@@ -47,6 +47,6 @@ FROM sys.dm_os_process_memory;
 ## SQL Server disk setup
 
 ```
-EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles SF'![image](https://user-images.githubusercontent.com/17140184/133975109-7a647c35-36a9-496b-a2ff-fb1677436470.png)
+EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles SF'
 
 ```
