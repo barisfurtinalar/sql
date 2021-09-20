@@ -1,1 +1,1 @@
-# sql
+# sql server related scripts
