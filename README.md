@@ -1,4 +1,4 @@
-# SQL Server related scripts
+# SQL Server performance related queries
 ----
 ## SQL Server Read / Write operations
 ```
@@ -59,3 +59,43 @@ WHERE counter_name = 'Page life expectancy';
 EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles SF'
 
 ```
+
+## SQL CPU stats
+
+### Top 10 queries with CPU consumption
+```
+SELECT TOP 10 query_stats.query_hash AS "Query Hash",   
+    SUM(query_stats.total_worker_time) / SUM(query_stats.execution_count) AS "Avg CPU Time",  
+    MIN(query_stats.statement_text) AS "Statement Text"  
+FROM   
+    (SELECT QS.*,   
+    SUBSTRING(ST.text, (QS.statement_start_offset/2) + 1,  
+    ((CASE statement_end_offset   
+        WHEN -1 THEN DATALENGTH(ST.text)  
+        ELSE QS.statement_end_offset END   
+            - QS.statement_start_offset)/2) + 1) AS statement_text  
+     FROM sys.dm_exec_query_stats AS QS  
+     CROSS APPLY sys.dm_exec_sql_text(QS.sql_handle) as ST) as query_stats  
+GROUP BY query_stats.query_hash  
+ORDER BY 2 DESC;
+```
+
+### Total number of rows by query
+```
+SELECT qs.execution_count,  
+    SUBSTRING(qt.text,qs.statement_start_offset/2 +1,   
+                 (CASE WHEN qs.statement_end_offset = -1   
+                       THEN LEN(CONVERT(nvarchar(max), qt.text)) * 2   
+                       ELSE qs.statement_end_offset end -  
+                            qs.statement_start_offset  
+                 )/2  
+             ) AS query_text,   
+     qt.dbid, dbname= DB_NAME (qt.dbid), qt.objectid,   
+     qs.total_rows, qs.last_rows, qs.min_rows, qs.max_rows  
+FROM sys.dm_exec_query_stats AS qs   
+CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt   
+WHERE qt.text like '%SELECT%'   
+ORDER BY qs.execution_count DESC;
+```
+
+
