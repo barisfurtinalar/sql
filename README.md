@@ -18,7 +18,9 @@ SELECT database_name, reads,
 	ORDER BY database_name;
 ```
 
-## SQL Server memory utilization
+## SQL Memory Stats
+
+### SQL Server memory utilization
 ```
 SELECT
 sqlserver_start_time,
@@ -27,7 +29,7 @@ sqlserver_start_time,
 FROM sys.dm_os_sys_info;
 ```
 
-## SQL Server current memory allocation
+### SQL Server current memory allocation
 
 ```
 SELECT
@@ -44,7 +46,7 @@ process_virtual_memory_low
 FROM sys.dm_os_process_memory;
 ```
 
-## SQL Server page life expectancy
+### SQL Server page life expectancy
 
 ```
 SELECT
