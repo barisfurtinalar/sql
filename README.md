@@ -80,7 +80,20 @@ GROUP BY query_stats.query_hash
 ORDER BY 2 DESC;
 ```
 
-### Total number of rows by query
+### CPU consumption per query plan
+```
+SELECT plan_handle,
+      SUM(total_worker_time) AS [Total CPU worker time in millisecond], 
+      SUM(execution_count) AS [Total execution count],
+      COUNT(*) AS [Number of statements that uses this query plan],
+	  SUM(total_worker_time)/SUM(execution_count) AS Avg_workertime,
+	  SUM(total_spills) AS Total_spills
+FROM sys.dm_exec_query_stats
+GROUP BY plan_handle
+ORDER BY avg_workertime DESC
+```
+
+## Total number of rows returned by a query
 ```
 SELECT qs.execution_count,  
     SUBSTRING(qt.text,qs.statement_start_offset/2 +1,   
