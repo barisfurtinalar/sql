@@ -171,3 +171,7 @@ ORDER BY
    [TotalSpace(MB)] desc
 ```
 
+## Check if SQL Instant File Initialization Enabled
+```
+exec xp_readerrorlog 0, 1, N'Database Instant File Initialization'
+```
