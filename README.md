@@ -175,3 +175,16 @@ ORDER BY
 ```
 exec xp_readerrorlog 0, 1, N'Database Instant File Initialization'
 ```
+
+## SQL Server I/O per database
+```
+DECLARE @d DateTime
+DECLARE @s BigInt
+SET @d = (SELECT sqlserver_start_time FROM sys.dm_os_sys_info)
+SET @s = (SELECT CAST((DATEDIFF(SECOND, CONVERT(date, @d), GETDATE())) AS bigint))
+SELECT sysdb.name,sum(sysio.num_of_reads) as [Number of ReadIO],sum(sysio.num_of_writes) as [Number of WriteIO] 
+, sum(sysio.num_of_reads)/@s as [Avg_Read/s],sum(sysio.num_of_writes)/@s as [Avg_Writes/s]
+from sys.dm_io_virtual_file_stats(null,null) as sysio join sys.databases as sysdb
+on sysio.database_id=sysdb.database_id group by sysdb.name 
+order by [Number of WriteIO] DESC
+```
