@@ -30,3 +30,4 @@ END TRY
 BEGIN CATCH  
     EXECUTE usp_GetErrorInfo;  
 END CATCH;
+-- SELECT * FROM #Disksetup ORDER BY Size DESC
