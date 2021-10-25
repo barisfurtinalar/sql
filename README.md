@@ -189,3 +189,15 @@ FROM sys.dm_io_virtual_file_stats(null,null) as sysio JOIN sys.databases AS sysd
 ON sysio.database_id=sysdb.database_id GROUP BY sysdb.name 
 ORDER BY [Total # of Write Ops] DESC
 ```
+
+## SQL Service/Server Uptime
+```
+SELECT (DATEDIFF(DAY, sqlserver_start_time, GETDATE()))
+       AS [Days],
+       ((DATEDIFF(MINUTE, sqlserver_start_time, GETDATE())/60)%24)
+       AS [Hours],
+       DATEDIFF(MINUTE, sqlserver_start_time, GETDATE())%60
+       AS [Minutes]
+FROM sys.dm_os_sys_info;
+```
+
