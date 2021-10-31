@@ -211,5 +211,5 @@ FROM sys.partitions p
 JOIN sys.destination_data_spaces ds ON p.partition_number = ds.destination_id
 JOIN sys.filegroups f ON ds.data_space_id = f.data_space_id
 JOIN sys.tables t ON t.[object_id]=p.[object_id]
-WHERE p.index_id = 1 /*do not return non-clustered indexes*/
+WHERE p.index_id = 1 /*Return Only Clustered Index. Use 2 for Unique Non Clustered and 4 for Non Clustered Indexes*/
 ```
