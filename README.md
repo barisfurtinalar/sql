@@ -203,7 +203,7 @@ FROM sys.dm_os_sys_info;
 ## SQL Number of Rows in Partitions
 ```
 SELECT 
-t.[name],
+t.[name] AS TableName,
 p.partition_number AS PartitionNumber, 
 f.name AS PartitionFilegroup, 
 p.rows AS NumberOfRows 
