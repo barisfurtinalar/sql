@@ -200,4 +200,16 @@ SELECT (DATEDIFF(DAY, sqlserver_start_time, GETDATE()))
        AS [Minutes]
 FROM sys.dm_os_sys_info;
 ```
-
+## SQL Number of Rows in Partitions
+```
+SELECT 
+t.[name],
+p.partition_number AS PartitionNumber, 
+f.name AS PartitionFilegroup, 
+p.rows AS NumberOfRows 
+FROM sys.partitions p
+JOIN sys.destination_data_spaces dds ON p.partition_number = dds.destination_id
+JOIN sys.filegroups f ON dds.data_space_id = f.data_space_id
+JOIN sys.tables t ON t.[object_id]=p.[object_id]
+WHERE p.index_id = 1 /*do not return clustered indexes*/
+```
