@@ -9,7 +9,7 @@
 } 
 
 ##Put the statement you want to run in all instances inside speech quotes below
-        $statement=@"
+$statement=@"
     WITH reads_and_writes AS (
 	SELECT db.name AS database_name,
 		SUM(user_seeks + user_scans + user_lookups) AS reads,
