@@ -4,7 +4,6 @@
       )
     $SQLservicesHash=@{}
     Get-WmiObject win32_service -computerName $Server | ?{$_.Caption -match "SQL Server*" -and $_.PathName -match "sqlservr.exe"} | %{$SQLservicesHash.Add($_.Name,$_.Status)}
-    ##Add-Content -Path $LogFile -Value "[INFORMATION]-$(Get-Date -Format o)-SQL Server - Instances found: $SQLservicesHash.Keys"
     return $SQLservicesHash 
 } 
 
