@@ -7,7 +7,7 @@
     return $SQLservicesHash 
 } 
 
-##Put the statement you want to run in all instances inside speech quotes below
+##Put the statement you want to run in all instances inside speech marks below
 $statement=@"
     WITH reads_and_writes AS (
 	SELECT db.name AS database_name,
