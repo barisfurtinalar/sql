@@ -42,7 +42,7 @@ foreach($sqli in $SQLinstancesName){
     else{
         
          Write-Output $sqli
-         Invoke-Sqlcmd -ServerInstance "$env:COMPUTERNAME\$sqli" -Query $statement 
+         Invoke-Sqlcmd -ServerInstance "$env:COMPUTERNAME\$sqli" -Query $statement | fl
 
         }
     }
