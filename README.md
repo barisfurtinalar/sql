@@ -56,7 +56,7 @@ WHERE counter_name = 'Page life expectancy';
 ```
 
 ## SQL Server disk setup
-Use file_layout.sql above instead.
+Use file_layout.sql script above instead.
 ```
 EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles SF'
 
@@ -141,7 +141,7 @@ ORDER BY
     dm_db_index_usage_stats.user_updates DESC
 ```
 
-## Storage space used by table for a given database
+## Storage space used by table for a given database (Troubleshooting)
 ```
 SELECT 
     t.NAME AS TableName,
@@ -200,7 +200,7 @@ SELECT (DATEDIFF(DAY, sqlserver_start_time, GETDATE()))
        AS [Minutes]
 FROM sys.dm_os_sys_info;
 ```
-## SQL Number of Rows in Partitions
+## SQL Number of Rows in Partitions (Troubleshooting)
 (If SQL partitioning feature is used)
 ```
 SELECT 
