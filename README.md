@@ -82,7 +82,7 @@ GROUP BY query_stats.query_hash
 ORDER BY 2 DESC;
 ```
 
-### CPU consumption per query plan
+### CPU consumption per query plan (Troubleshooting)
 ```
 SELECT plan_handle,
       SUM(total_worker_time) AS [Total CPU worker time in millisecond], 
