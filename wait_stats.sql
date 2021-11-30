@@ -22,7 +22,6 @@ WITH [Waits] AS
         N'CLR_SEMAPHORE',
         /* Comment this next line if you suspect parallelism issues */
         N'CXCONSUMER', 
-
         N'DIRTY_PAGE_POLL', 
         N'DISPATCHER_QUEUE_SEMAPHORE', 
         N'EXECSYNC', 
