@@ -64,7 +64,7 @@ EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles 
 
 ## SQL CPU stats
 
-### Top 10 queries by CPU consumption
+### Top 10 queries by CPU consumption (Troubleshooting)
 ```
 SELECT TOP 10 query_stats.query_hash AS "Query Hash",   
     SUM(query_stats.total_worker_time) / SUM(query_stats.execution_count) AS "Avg CPU Time",  
@@ -95,7 +95,7 @@ GROUP BY plan_handle
 ORDER BY avg_workertime DESC
 ```
 
-## Total number of rows returned by a query
+## Total number of rows returned by queries
 ```
 SELECT qs.execution_count,  
     SUBSTRING(qt.text,qs.statement_start_offset/2 +1,   
