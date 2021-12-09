@@ -94,7 +94,7 @@ EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles 
 
 ### SQL Server CPU utilisation vs. & CPU Idle %
 
-CPU consumed by SQL Server compared to idle CPU percentage for the past few hours
+CPU consumed by SQL Server instance compared to idle CPU percentage for the past few hours
 
 ```
 SELECT  
