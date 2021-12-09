@@ -58,7 +58,7 @@ WHERE counter_name = 'Page life expectancy';
 ### SQL Server Page Splits (Troubleshooting)
 
 ```
-/*Samples Page splits in a 10 seconds slot
+/*Samples Page splits in a 10-second slot
 Only using yhe counter_name “Page Splits/sec”(DMV) is misleading, because the metric returns an incrementing value.
 */
 DECLARE @ps_Start_ms bigint, @ps_Start bigint
