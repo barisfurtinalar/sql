@@ -169,7 +169,7 @@ ORDER BY
     dm_db_index_usage_stats.user_updates DESC
 ```
 
-## Storage space used by table for a given database (Troubleshooting)
+## Storage space used by tables for a given database (Troubleshooting)
 ```
 SELECT 
     t.NAME AS TableName,
@@ -204,7 +204,7 @@ ORDER BY
 exec xp_readerrorlog 0, 1, N'Database Instant File Initialization'
 ```
 
-## SQL Server I/O per database
+## SQL Server I/O ops per database
 ```
 DECLARE @d DateTime
 DECLARE @s BigInt
@@ -228,7 +228,7 @@ SELECT (DATEDIFF(DAY, sqlserver_start_time, GETDATE()))
        AS [Minutes]
 FROM sys.dm_os_sys_info;
 ```
-## SQL Number of Rows in Partitions (Troubleshooting)
+## SQL Server Number of Rows in Partitions (Troubleshooting)
 (If SQL partitioning feature is used)
 ```
 SELECT 
