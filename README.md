@@ -99,8 +99,8 @@ CPU consumed by SQL Server instance compared to idle CPU percentage for the past
 ```
 SELECT  
 [Event_Time] = DATEADD(ms, -1 * (si.cpu_ticks / (si.cpu_ticks/si.ms_ticks) - x.[timestamp]), SYSDATETIMEOFFSET())
-,CPU_SQL_pct = bufferxml.value('(./Record/SchedulerMonitorEvent/SystemHealth/ProcessUtilization)[1]', 'int')
-,CPU_Idle_pct = bufferxml.value('(./Record/SchedulerMonitorEvent/SystemHealth/SystemIdle)[1]', 'int')
+,CPU_Util_SQL = bufferxml.value('(./Record/SchedulerMonitorEvent/SystemHealth/ProcessUtilization)[1]', 'int')
+,CPU_Idle = bufferxml.value('(./Record/SchedulerMonitorEvent/SystemHealth/SystemIdle)[1]', 'int')
 FROM (SELECT timestamp, CONVERT(xml, record) AS bufferxml
    FROM sys.dm_os_ring_buffers
    WHERE ring_buffer_type = N'RING_BUFFER_SCHEDULER_MONITOR') AS x
