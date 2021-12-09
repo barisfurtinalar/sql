@@ -55,6 +55,33 @@ FROM sys.dm_os_performance_counters
 WHERE counter_name = 'Page life expectancy';
 ```
 
+### SQL Server Page Splits (Troubleshooting)
+
+```
+/*Samples Page splits in a 10 seconds slot
+Only using yhe counter_name “Page Splits/sec”(DMV) is misleading, because the metric returns an incrementing value.
+*/
+DECLARE @ps_Start_ms bigint, @ps_Start bigint
+, @ps_End_ms bigint, @ps_End bigint;
+SELECT @ps_Start_ms = ms_ticks
+, @ps_Start = cntr_value
+FROM sys.dm_os_sys_info CROSS APPLY 
+sys.dm_os_performance_counters
+WHERE counter_name ='Page Splits/sec'
+AND object_name LIKE '%SQL%Access Methods %';
+WAITFOR DELAY '00:00:05'; --Sample 10 seconds - change as you will.
+SELECT @ps_End_ms = MAX(ms_ticks), 
+@ps_End = MAX(cntr_value)
+FROM sys.dm_os_sys_info CROSS APPLY
+sys.dm_os_performance_counters
+WHERE counter_name ='Page Splits/sec'
+AND object_name LIKE '%SQL%Access Methods%'; 
+SELECT Time_Observed = SYSDATETIMEOFFSET(), Page_Splits_per_s = convert(decimal(19,3), 
+(@ps_End - @ps_Start)*1.0/ NULLIF(@ps_End_ms - @ps_Start_ms,0)); 
+
+```
+
+
 ## SQL Server disk setup
 Use file_layout.sql script above instead.
 ```
