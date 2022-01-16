@@ -235,6 +235,27 @@ ON sysio.database_id=sysdb.database_id GROUP BY sysdb.name
 ORDER BY [Total # of Write Ops] DESC
 ```
 
+## SQL Server Database File Usage Stats
+```
+SELECT
+   DB_NAME(dbid) 'Database Name',
+   physical_name 'File Location',
+   NumberReads 'Number of Reads',
+   BytesRead 'Bytes Read',
+   NumberWrites 'Number of Writes',
+   BytesWritten 'Bytes Written',   
+   IoStallReadMS 'IO Stall Read',
+   IoStallWriteMS 'IO Stall Write',
+   IoStallMS as 'Total IO Stall (ms)'
+FROM
+   fn_virtualfilestats(NULL,NULL) fs INNER JOIN
+    sys.master_files mf ON fs.dbid = mf.database_id 
+    AND fs.fileid = mf.file_id
+ORDER BY
+   DB_NAME(dbid)
+```
+
+
 ## SQL Service/Server Uptime
 ```
 SELECT (DATEDIFF(DAY, sqlserver_start_time, GETDATE()))
