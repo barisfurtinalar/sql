@@ -84,7 +84,25 @@ SELECT Time_Observed = SYSDATETIMEOFFSET(), Page_Splits_per_s = convert(decimal(
 
 
 ## SQL Server disk setup
-Use file_layout.sql script above instead.
+
+```
+SELECT
+    db.name AS [DB_Name],
+    mfr.physical_name AS Data_file,
+    mfl.physical_name AS Log_file,
+	mfr.size*8/1024 as [Data_file_size_(MiB)],
+	mfr.state_desc as [File_state],
+	mfr.growth
+FROM sys.databases db
+    JOIN sys.master_files mfr ON db.database_id=mfr.database_id AND mfr.type_desc='ROWS'
+    JOIN sys.master_files mfl ON db.database_id=mfl.database_id AND mfl.type_desc='LOG'
+WHERE db.database_id > 4
+ORDER BY mfr.size DESC
+
+```
+
+Another approach:
+
 ```
 EXEC sp_MSforeachdb 'USE ? SELECT ''?'', SF.filename, SF.size FROM sys.sysfiles SF'
 
