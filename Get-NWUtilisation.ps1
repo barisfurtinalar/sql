@@ -1,4 +1,4 @@
- $start = get-date
+$start = get-date
 $end = $start.addMinutes(0.5)
 $duration = new-timespan $start $end
 $count = 0
