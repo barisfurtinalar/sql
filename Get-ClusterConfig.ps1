@@ -2,7 +2,7 @@ $path = 'C:\logfolder'
 $logFile = "$path\Configlog.txt"
 $evalpath = Test-Path $path
 $evalfile = Test-Path $logfile
-$timestamp =(Get-Date).ToString("MM-dd-yy-hh-mm")
+$timestamp =(Get-Date).ToString("dd-MM-yy-hh:mm")
 
 if($evalpath -eq $false){
 
