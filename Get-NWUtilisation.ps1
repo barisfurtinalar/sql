@@ -30,7 +30,7 @@ while ($duration -gt 0) {
          Add-Content -Path C:\NetworkUtilisationLogfile.txt -Value "$($interface.Name) - Utilisation -->`t $result % <-- $(get-date)"
       }
    }
-   Start-Sleep -milliseconds 300
+   Start-Sleep -milliseconds 200
    $duration = new-timespan $(Get-Date) $end
 }
 
