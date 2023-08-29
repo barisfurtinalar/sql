@@ -17,7 +17,7 @@ $disks = Get-CimInstance -class Win32_PerfFormattedData_PerfDisk_LogicalDisk | S
         }
     }
 
-    Start-Sleep -milliseconds 300
+    Start-Sleep -milliseconds 100
     $duration = new-timespan $(Get-Date) $end
 }
 
