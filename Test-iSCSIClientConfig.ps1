@@ -16,4 +16,7 @@ if($targetIP.Count -gt 1){
     Write-Output "###########"
     Write-Output "OK - More than 2 iSCSI targets configured" 
     Write-Output "###########"
-} 
+}
+Write-Output "MPIO policy set to: $mpioPolicy"
+Write-Output "###########" 
+
