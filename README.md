@@ -252,6 +252,18 @@ FROM sys.dm_io_virtual_file_stats(null,null) as sysio JOIN sys.databases AS sysd
 ON sysio.database_id=sysdb.database_id GROUP BY sysdb.name 
 ORDER BY [Total # of Write Ops] DESC
 ```
+## SQL Server Total Latency per Database
+```
+SELECT TOP 1000 DB_NAME(a.database_id) AS [DB Name],
+a.io_stall / NULLIF (a.num_of_reads + a.num_of_writes, 0) AS [Average total latency],
+Round ((a.size_on_disk_bytes / square (1024.0)), 1) AS Size_mb,
+b.physical_name AS [File Name]
+FROM sys.dm_io_virtual_file_stats(NULL, NULL) AS a,
+sys.master_files AS b
+WHERE a.database_id = b.database_id
+AND a.FILE_ID = b.FILE_ID
+ORDER BY [Average total latency] DESC
+```
 
 ## SQL Server Database File Usage Stats
 ```
