@@ -329,6 +329,8 @@ SELECT d.name as Database_name,
 FROM sys.master_files mf 
 JOIN sys.databases d  ON mf.database_id=d.database_id
 WHERE is_percent_growth=1
+--Remove comment below to exclude master and msdb
+--AND d.database_id > 4
 UNION
 SELECT d.name as database_name,
     mf.name as File_name,
