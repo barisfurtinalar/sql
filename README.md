@@ -316,3 +316,30 @@ JOIN sys.filegroups f ON ds.data_space_id = f.data_space_id
 JOIN sys.tables t ON t.[object_id]=p.[object_id]
 WHERE p.index_id = 1 /*Return Only Clustered Index. Use 2 for Unique Non Clustered and 4 for Non Clustered Indexes*/
 ```
+
+## File Auto Growth Settings (All DBs)
+```
+SELECT d.name as Database_name,
+	mf.name as File_name,
+	mf.physical_name as File_path,
+	mf.type_desc as File_type,
+	CONVERT(DECIMAL(20,2), (CONVERT(DECIMAL,mf.size)/128)) as [Filesize (MB)],
+	mf.growth as Growth,
+	'Percent' as Growth_increment
+FROM sys.master_files mf 
+JOIN sys.databases d  ON mf.database_id=d.database_id
+WHERE is_percent_growth=1
+UNION
+SELECT d.name as database_name,
+    mf.name as File_name,
+	mf.physical_name as File_path,
+    mf.type_desc as file_type,
+	CONVERT(DECIMAL(20,2), (CONVERT(DECIMAL,mf.size)/128)) as filesizeMB,
+    (CASE WHEN mf.growth = 128 THEN 1 END) AS growth,
+	'MB' as growth_increment
+FROM sys.master_files mf 
+JOIN sys.databases d ON mf.database_id=d.database_id
+WHERE is_percent_growth=0
+AND mf.growth = 128
+ORDER BY d.name, mf.name
+```
