@@ -238,6 +238,8 @@ ORDER BY
 ```
 exec xp_readerrorlog 0, 1, N'Database Instant File Initialization'
 ```
+
+```
 SELECT servicename, instant_file_initialization_enabled 
 FROM sys.dm_server_services
 WHERE servicename like 'SQL Server (%';
