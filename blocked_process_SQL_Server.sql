@@ -20,3 +20,7 @@ WITH (MAX_MEMORY=4096 KB,EVENT_RETENTION_MODE=ALLOW_SINGLE_EVENT_LOSS,MAX_DISPAT
 GO
 
 /* start the Extended Event session  */
+
+ALTER EVENT SESSION [blocked_process_report1]
+      ON SERVER
+    STATE = START;  -- STOP;
