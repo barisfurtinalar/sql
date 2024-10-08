@@ -3,7 +3,7 @@ GO
 
 RECONFIGURE;
 GO
-/*Sets the blocked process threshold to 10 seconds, generating a blocked process report for each task that is blocked.*/
+/* Sets the blocked process threshold to 10 seconds, generating a blocked process report for each task that is blocked. */
 sp_configure 'blocked process threshold', 10;
 GO
 
@@ -19,4 +19,4 @@ ADD TARGET package0.event_file(SET filename=N'c:\temp\b_report')
 WITH (MAX_MEMORY=4096 KB,EVENT_RETENTION_MODE=ALLOW_SINGLE_EVENT_LOSS,MAX_DISPATCH_LATENCY=30 SECONDS,MAX_EVENT_SIZE=0 KB,MEMORY_PARTITION_MODE=NONE,TRACK_CAUSALITY=OFF,STARTUP_STATE=ON)
 GO
 
---start the session
+/* start the Extended Event session  */
