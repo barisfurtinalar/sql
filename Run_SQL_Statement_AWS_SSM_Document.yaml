@@ -1,0 +1,69 @@
+schemaVersion: '2.2'
+description: |
+  Connect to a local SQL Server instance using credentials from AWS Secrets Manager,
+  run a SQL statement, and output the results as CSV.
+
+parameters:
+  SecretId:
+    type: String
+    default: "sql_user"
+    description: "Name or ARN of the secret in Secrets Manager"
+  SqlQuery:
+    type: String
+    description: "SQL Server Query"
+  SqlServerInstance:
+    type: String
+    default: "."
+    description: "SQL Server instance (default is local)"
+  DatabaseName:
+    type: String
+    default: "master"
+    description: "Database name (default is 'master')"
+
+mainSteps:
+  - action: aws:runPowerShellScript
+    name: RunSqlWaitStats
+    inputs:
+      runCommand:
+        - |
+          param (
+              [string]$SecretId = "{{ SecretId }}",
+              [string]$SqlQuery = "{{ SqlQuery }}",
+              [string]$SqlServerInstance = "{{ SqlServerInstance }}",
+              [string]$DatabaseName = "{{ DatabaseName }}"
+          )
+
+          try {
+              $secretJson = (Get-SECSecretValue -SecretId $SecretId).SecretString
+              $secret = $secretJson | ConvertFrom-Json
+              $username = $secret.username
+              $password = $secret.password
+
+              $connStr = "Server=$SqlServerInstance;Database=$DatabaseName;User ID=$username;Password=$password;Trusted_Connection=False;"
+              $conn = New-Object System.Data.SqlClient.SqlConnection $connStr
+              $conn.Open()
+
+              $cmd = $conn.CreateCommand()
+              $cmd.CommandText = $SqlQuery
+              $reader = $cmd.ExecuteReader()
+
+              $results = @()
+              while ($reader.Read()) {
+                  $row = [ordered]@{}
+                  for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                      $row[$reader.GetName($i)] = $reader.GetValue($i)
+                  }
+                  $results += New-Object PSObject -Property $row
+              }
+              $reader.Close()
+              $conn.Close()
+
+              if ($results.Count -gt 0) {
+                  $results | ConvertTo-Csv -NoTypeInformation | ForEach-Object { Write-Output $_ }
+              } else {
+                  Write-Output "No rows returned by the query."
+              }
+
+          } catch {
+              Write-Error "Error during execution: $_"
+          }
