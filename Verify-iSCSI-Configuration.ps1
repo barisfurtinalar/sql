@@ -11,7 +11,7 @@
 .NOTES
     File Name      : Verify-iSCSI-Configuration.ps1
     Author         : Your Name
-    Prerequisite   : PowerShell 5.1 or later, MPIO feature installed
+    Prerequisite   : PowerShell 5.1 or later (works best with PowerShell 7.x), MPIO feature installed
     Execution Policy: Should be run with administrative privileges
 #>
 
