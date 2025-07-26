@@ -10,7 +10,7 @@
     - iSCSI connection status to targets
 .NOTES
     File Name      : Verify-iSCSI-Configuration.ps1
-    Author         : Your Name
+    Author         : Baris Furtinalar
     Prerequisite   : PowerShell 5.1 or later (works best with PowerShell 7.x), MPIO feature installed
     Execution Policy: Should be run with administrative privileges
 #>
