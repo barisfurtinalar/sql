@@ -15,7 +15,7 @@
 .PARAMETER IncludeTimestamp
     Add timestamp to output (.zip file)
 .EXAMPLE
-    .\assessment-v2.ps1 -SourceFolder "C:\Temp" -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
+    .\Assess-SQLServer.ps1 -SourceFolder "C:\Temp" -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
 #>
 
 param(
