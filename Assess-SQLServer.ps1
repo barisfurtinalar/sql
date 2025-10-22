@@ -1,47 +1,45 @@
   <#
 .SYNOPSIS
-    SQL server assessment script based on server and SQL server metrics
+    Performs automated assessment of SQL Server health, performance, and configuration by collecting key DMV and server metrics
 .DESCRIPTION
-    SQL server assessment script collecting metrics using SQL Server DMVs. Outputs are saved to Destination folder and compressed. The script needs necessary permissions to create files/folders.
-    Uses Windows authentication to connect to SQL Server.
+    This script performs a comprehensive assessment of a target SQL Server instance by collecting and analyzing key system and SQL Server metrics. 
+    Leveraging a series of queries against SQL Server Dynamic Management Views (DMVs) and server properties, it gathers crucial information about 
+    server health, performance bottlenecks, resource consumption, and configuration details. Results are exported as CSV files for easy review and
+    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp 
 .PARAMETER server
     The SQL Server name or listener name.
 .PARAMETER database
     The database name to connect to (defaults to 'master' if not specified).
-.PARAMETER SourceFolder
-    source folder that contains .csv files. (defaults to 'C:\Temp' if not specified)
 .PARAMETER DestinationFolder
     Destination folder to save .zip file. (defaults to 'C:\Temp' if not specified)
 .PARAMETER IncludeTimestamp
     Add timestamp to output (.zip file)
 .EXAMPLE
-    .\Assess-SQLServer.ps1 -SourceFolder "C:\Temp" -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
+    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
 #>
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$server,
+
+    [Parameter(Mandatory=$false)]
+    [string]$database = "master",
     
     [Parameter(Mandatory=$true)]
-    [string]$SourceFolder = "C:\Temp",
-    
-    [Parameter(Mandatory=$false)]
     [string]$DestinationFolder = "C:\Temp",
     
     [Parameter(Mandatory=$false)]
     [switch]$IncludeTimestamp
 )
 
+$ErrorActionPreference = "Stop"
+
 try {
-    # Validate source folder
-    if (-not (Test-Path -Path $SourceFolder)) {
-        New-Item -ItemType Directory -Path $SourceFolder | Out-Null
-        Write-Host "Created destination folder: $SourceFolder"
-    }
+    
     # Create destination folder if it doesn't exist
     if (-not (Test-Path -Path $DestinationFolder)) {
         New-Item -ItemType Directory -Path $DestinationFolder | Out-Null
-        Write-Host "Created destination folder: $DestinationFolder"
+        Write-Output "Created destination folder: $DestinationFolder"
     }
     
 }
@@ -50,11 +48,12 @@ catch {
     exit 1
 }
 
-Install-Module -Name SqlServer
+if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+    Install-Module -Name SqlServer -Force
+}
+Import-Module SqlServer
 
-$database = "master"
-
-# Define query combining DMV queries (you can tweak as needed)
+#Various DMV queries (you can tweak as needed)
 $query1 = @"
 WITH Uptime AS (
     SELECT DATEDIFF(SECOND, sqlserver_start_time, GETDATE()) AS UptimeInSeconds
@@ -127,18 +126,15 @@ FROM sys.dm_os_sys_info;
 $query5 = @"
 SELECT  
     SERVERPROPERTY('ProductVersion')     AS [ProductVersion],
-    SERVERPROPERTY('ProductLevel')       AS [ProductLevel],   -- RTM / SP / CU
+    SERVERPROPERTY('ProductLevel')       AS [ProductLevel],  
     SERVERPROPERTY('Edition')            AS [Edition],
-    SERVERPROPERTY('EngineEdition')      AS [EngineEdition],  -- numeric code
-    SERVERPROPERTY('ProductUpdateLevel') AS [ProductUpdateLevel], -- e.g. CU number
-    SERVERPROPERTY('ProductBuildType')   AS [ProductBuildType],   -- e.g. GDR / CU
+    SERVERPROPERTY('EngineEdition')      AS [EngineEdition],  
+    SERVERPROPERTY('ProductUpdateLevel') AS [ProductUpdateLevel], 
+    SERVERPROPERTY('ProductBuildType')   AS [ProductBuildType],   
     SERVERPROPERTY('InstanceName')       AS [InstanceName],
     SERVERPROPERTY('MachineName')        AS [MachineName],
     SERVERPROPERTY('IsClustered')        AS [IsClustered]
 "@
-
-# Load SQL Server module
-Import-Module SqlServer
 
 # Execute query and export results
 Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query1 -TrustServerCertificate | 
@@ -158,19 +154,22 @@ Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query5 -TrustS
 
 try {
 
-    # Generate zip file name
-    $folderName = Split-Path -Path $SourceFolder -Leaf
-    $timestamp = if ($IncludeTimestamp) { "_$(Get-Date -Format 'yyyyMMdd_HHmmss')" } else { "" }
-    $zipName = "SQLAssesment-${timestamp}.zip"
-    $destinationZip = Join-Path -Path $DestinationFolder -ChildPath $zipName
+    #$folderName = Split-Path -Path $DestinationFolder -Leaf
 
+    if ($IncludeTimestamp) {
+        $zipName = "SQLAssessment_$((Get-Date -Format 'yyyyMMdd_HHmmss')).zip"
+    } else {
+        $zipName = "SQLAssessment.zip"
+    }
+
+    $destinationZip = Join-Path -Path $DestinationFolder -ChildPath $zipName
     # Create the zip file
-    Compress-Archive -Path "$SourceFolder\*.csv" -DestinationPath $destinationZip -Force
-    
+    Compress-Archive -Path "$DestinationFolder\*.csv" -DestinationPath $destinationZip -Force
+
     # Verify zip file was created
     if (Test-Path -Path $destinationZip) {
-        Write-Host "Successfully created zip file: $destinationZip"
-        Write-Host "Zip file size: $((Get-Item $destinationZip).Length / 1MB) MB"
+        Write-Output "Successfully created zip file: $destinationZip"
+        Write-Output "Zip file size: $((Get-Item $destinationZip).Length / 1MB) MB"
     }
     else {
         throw "Failed to create zip file"
