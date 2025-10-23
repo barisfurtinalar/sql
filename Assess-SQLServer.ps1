@@ -5,19 +5,27 @@
     This script performs a comprehensive assessment of a target SQL Server instance by collecting and analyzing key system and SQL Server metrics. 
     Leveraging a series of queries against SQL Server Dynamic Management Views (DMVs) and server properties, it gathers crucial information about 
     server health, performance bottlenecks, resource consumption, and configuration details. Results are exported as CSV files for easy review and
-    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp 
+    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp. Requires -RunAsAdministrator
 .PARAMETER server
     The SQL Server name or listener name.
 .PARAMETER database
     The database name to connect to (defaults to 'master' if not specified).
 .PARAMETER DestinationFolder
-    Destination folder to save .zip file. (defaults to 'C:\Temp' if not specified)
+    Destination folder to save .csv files and the final .zip file. (defaults to 'C:\Temp' if not specified)
 .PARAMETER IncludeTimestamp
     Add timestamp to output (.zip file)
+.PARAMETER UseSqlAuthentication
+    Switch to enable SQL authentication instead of Windows authentication.
+.PARAMETER SqlUser
+    The SQL login username to use when SQL authentication is enabled.
+.PARAMETER SqlPassword
+    The SQL login password to use when SQL authentication is enabled.
 .EXAMPLE
     .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
+.EXAMPLE
+    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -UseSqlAuthentication -SqlUser "sa" -SqlPassword "YourPassword!" -IncludeTimestamp 
 #>
-
+#Requires -RunAsAdministrator
 param(
     [Parameter(Mandatory=$true)]
     [string]$server,
@@ -25,11 +33,21 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$database = "master",
     
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [string]$DestinationFolder = "C:\Temp",
     
     [Parameter(Mandatory=$false)]
-    [switch]$IncludeTimestamp
+    [switch]$IncludeTimestamp,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$UseSqlAuthentication,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$SqlUser,
+
+    [Parameter(Mandatory=$false)]
+    [string]$SqlPassword
+
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,8 +71,20 @@ if (-not (Get-Module -ListAvailable -Name SqlServer)) {
 }
 Import-Module SqlServer
 
+$sqlParams = @{
+    ServerInstance = $server
+    Database = $database
+    TrustServerCertificate = $true
+    Query = $null
+}
+
+if ($UseSqlAuthentication) {
+    $sqlParams["Username"] = $SqlUser
+    $sqlParams["Password"] = $SqlPassword
+}
+
 #Various DMV queries (you can tweak as needed)
-$query1 = @"
+$waitstats = @"
 WITH Uptime AS (
     SELECT DATEDIFF(SECOND, sqlserver_start_time, GETDATE()) AS UptimeInSeconds
     FROM sys.dm_os_sys_info
@@ -76,7 +106,7 @@ ORDER BY potential_impact DESC;
 
 "@
 
-$query2 = @"
+$sqlfiles = @"
 SELECT
     DB_NAME(vfs.database_id) AS database_name,
     vfs.file_id,
@@ -96,7 +126,7 @@ ORDER BY vfs.io_stall_read_ms DESC;
 
 "@
 
-$query3 = @"
+$executionplan = @"
 SELECT TOP 20
     t.text AS sql_text,
     s.execution_count,
@@ -113,7 +143,7 @@ CROSS APPLY sys.dm_exec_sql_text(s.sql_handle) AS t
 ORDER BY avg_physical_reads DESC;
 "@
 
-$query4 = @"
+$osinfo = @"
 SELECT 
 	virtual_machine_type_desc AS [virtualized?],
 	cpu_count AS Cores,
@@ -123,7 +153,7 @@ SELECT
 FROM sys.dm_os_sys_info;
 "@
 
-$query5 = @"
+$sqlinfo = @"
 SELECT  
     SERVERPROPERTY('ProductVersion')     AS [ProductVersion],
     SERVERPROPERTY('ProductLevel')       AS [ProductLevel],  
@@ -136,25 +166,43 @@ SELECT
     SERVERPROPERTY('IsClustered')        AS [IsClustered]
 "@
 
-# Execute query and export results
-Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query1 -TrustServerCertificate | 
-    Export-Csv -Path "$DestinationFolder\SQLServerWaitStats.csv" -NoTypeInformation -Encoding UTF8
-
-Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query2 -TrustServerCertificate | 
-    Export-Csv -Path "$DestinationFolder\SQLServerFileLayout.csv" -NoTypeInformation -Encoding UTF8
-
-Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query3 -TrustServerCertificate | 
-    Export-Csv -Path "$DestinationFolder\SQLServerExecutionPlanMetrics.csv" -NoTypeInformation -Encoding UTF8
-
-Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query4 -TrustServerCertificate | 
-    Export-Csv -Path "$DestinationFolder\SQLServerOSandHW.csv" -NoTypeInformation -Encoding UTF8
-
-Invoke-Sqlcmd -ServerInstance $server -Database $database -Query $query5 -TrustServerCertificate | 
-    Export-Csv -Path "$DestinationFolder\SQLServerInfo.csv" -NoTypeInformation -Encoding UTF8
+$memorystate = @"
+SELECT  
+    total_physical_memory_kb / 1024 AS [Total_Physical_Memory_MB],
+    available_physical_memory_kb / 1024 AS [Available_Physical_Memory_MB],
+    total_page_file_kb / 1024 AS [Total_Page_File_MB],
+    available_page_file_kb / 1024 AS [Available_Page_File_MB],
+    system_memory_state_desc AS [SystemMemoryState]
+FROM sys.dm_os_sys_memory;
+"@
 
 try {
 
-    #$folderName = Split-Path -Path $DestinationFolder -Leaf
+    $sqlParams["Query"] = $waitstats
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerWaitStats.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $sqlfiles
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerFiles.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $executionplan
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerExecutionPlanStats.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $osinfo
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerOSinfo.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $sqlinfo
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerInfo.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $memorystate
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerMemoryState.csv" -NoTypeInformation -Encoding UTF8
+
+}
+catch {
+    Write-Error "An error occurred: $_"
+    exit 1
+}
+
+try {
 
     if ($IncludeTimestamp) {
         $zipName = "SQLAssessment_$((Get-Date -Format 'yyyyMMdd_HHmmss')).zip"
