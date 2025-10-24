@@ -5,7 +5,7 @@
     This script performs a comprehensive assessment of a target SQL Server instance by collecting and analyzing key system and SQL Server metrics. 
     Leveraging a series of queries against SQL Server Dynamic Management Views (DMVs) and server properties, it gathers crucial information about 
     server health, performance bottlenecks, resource consumption, and configuration details. Results are exported as CSV files for easy review and
-    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp. Requires -RunAsAdministrator
+    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp 
 .PARAMETER server
     The SQL Server name or listener name.
 .PARAMETER database
@@ -176,6 +176,23 @@ SELECT
 FROM sys.dm_os_sys_memory;
 "@
 
+$diskIOperDB = @"
+WITH reads_and_writes AS (
+	SELECT db.name AS database_name,
+		SUM(user_seeks + user_scans + user_lookups) AS reads,
+		SUM(user_updates) AS writes,
+		SUM(user_seeks + user_scans + user_lookups + user_updates) AS all_activity
+	FROM sys.dm_db_index_usage_stats us
+	INNER JOIN sys.databases db ON us.database_id = db.database_id
+	GROUP BY db.name)
+SELECT database_name, reads, 
+		FORMAT(((reads * 1.0) / all_activity),'P')  AS reads_percent,
+		writes,
+		FORMAT(((writes * 1.0) / all_activity),'P')  AS writes_percent
+	FROM reads_and_writes rw
+	ORDER BY database_name;
+"@
+
 try {
 
     $sqlParams["Query"] = $waitstats
@@ -195,6 +212,9 @@ try {
 
     $sqlParams["Query"] = $memorystate
     Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerMemoryState.csv" -NoTypeInformation -Encoding UTF8
+
+    $sqlParams["Query"] = $diskIOperDB
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerIOstats.csv" -NoTypeInformation -Encoding UTF8
 
 }
 catch {
