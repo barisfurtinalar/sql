@@ -127,7 +127,7 @@ ORDER BY vfs.io_stall_read_ms DESC;
 "@
 
 $executionplan = @"
-SELECT TOP 20
+SELECT
     t.text AS sql_text,
     s.execution_count,
     s.total_physical_reads / s.execution_count AS avg_physical_reads,
