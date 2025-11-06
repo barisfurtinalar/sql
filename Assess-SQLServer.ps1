@@ -107,11 +107,12 @@ ORDER BY potential_impact DESC;
 "@
 
 $sqlfiles = @"
-SELECT
+ SELECT
     DB_NAME(vfs.database_id) AS database_name,
     vfs.file_id,
     mf.name AS file_name,
     mf.physical_name AS file_path,
+    CAST(mf.size AS FLOAT) * 8 / 1024 AS size_mb,
     vfs.num_of_reads,
     CAST(vfs.num_of_bytes_read AS FLOAT) / 1024 AS num_of_kb_read,
     vfs.io_stall_read_ms,
@@ -122,7 +123,7 @@ FROM sys.dm_io_virtual_file_stats(NULL, NULL) AS vfs
 JOIN sys.master_files AS mf
     ON vfs.database_id = mf.database_id
     AND vfs.file_id = mf.file_id
-ORDER BY vfs.io_stall_read_ms DESC;
+ORDER BY vfs.io_stall_read_ms DESC; 
 
 "@
 
