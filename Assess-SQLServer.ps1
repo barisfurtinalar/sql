@@ -5,7 +5,9 @@
     This script performs a comprehensive assessment of a target SQL Server instance by collecting and analyzing key system and SQL Server metrics. 
     Leveraging a series of queries against SQL Server Dynamic Management Views (DMVs) and server properties, it gathers crucial information about 
     server health, performance bottlenecks, resource consumption, and configuration details. Results are exported as CSV files for easy review and
-    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp 
+    further analysis and are optionally packaged as a compressed ZIP archive with a timestamp. The script must be run with Administrator privileges
+	on the system. Additionally, the executing user must have the VIEW SERVER STATE and VIEW DATABASE STATE permissions on the SQL Server instance 
+	to access the necessary metadata and DMV information.
 .PARAMETER server
     The SQL Server name or listener name.
 .PARAMETER database
@@ -103,7 +105,6 @@ SELECT TOP 10
     END) * (CAST(waiting_tasks_count AS FLOAT) / (SELECT UptimeInSeconds FROM Uptime)) AS DECIMAL(18,2)) AS potential_impact
 FROM sys.dm_os_wait_stats
 ORDER BY potential_impact DESC;
-
 "@
 
 $sqlfiles = @"
@@ -124,24 +125,24 @@ JOIN sys.master_files AS mf
     ON vfs.database_id = mf.database_id
     AND vfs.file_id = mf.file_id
 ORDER BY vfs.io_stall_read_ms DESC; 
-
 "@
 
 $executionplan = @"
-SELECT
+SELECT 
     t.text AS sql_text,
     s.execution_count,
     s.total_physical_reads / s.execution_count AS avg_physical_reads,
     s.total_logical_reads / s.execution_count AS avg_logical_reads,
     s.total_logical_writes / s.execution_count AS avg_logical_writes,
-	s.total_elapsed_time / s.execution_count AS [avg_execution_time],
-	s.total_worker_time / s.execution_count AS avg_CPU_Time,
-	s.total_grant_kb / s.execution_count AS avg_memory_grant,
-	s.max_physical_reads,
-	s.min_physical_reads
+    s.total_elapsed_time / s.execution_count AS [avg_execution_time],
+    s.total_worker_time / s.execution_count AS avg_CPU_Time,
+    s.total_grant_kb / s.execution_count AS avg_memory_grant,
+    s.max_physical_reads,
+    s.min_physical_reads
 FROM sys.dm_exec_query_stats AS s
 CROSS APPLY sys.dm_exec_sql_text(s.sql_handle) AS t
-ORDER BY avg_physical_reads DESC;
+WHERE s.execution_count > 10
+ORDER BY avg_physical_reads DESC, avg_logical_writes DESC;
 "@
 
 $osinfo = @"
