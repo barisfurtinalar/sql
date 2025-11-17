@@ -195,6 +195,15 @@ SELECT database_name, reads,
 	ORDER BY database_name;
 "@
 
+$sqlconfig = @"
+SELECT 
+    name,
+    CAST(value AS INT) AS ConfiguredValue,
+    CAST(value_in_use AS INT) AS EffectiveValue
+FROM sys.configurations
+WHERE name IN ('max degree of parallelism', 'cost threshold for parallelism');
+"@ 
+
 try {
 
     $sqlParams["Query"] = $waitstats
@@ -217,7 +226,11 @@ try {
 
     $sqlParams["Query"] = $diskIOperDB
     Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerIOstats.csv" -NoTypeInformation -Encoding UTF8
+	
+	$sqlParams["Query"] = $sqlconfig
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerConfig.csv" -NoTypeInformation -Encoding UTF8
 
+    Get-CimInstance Win32_Processor | Select-Object Name, MaxClockSpeed | Export-Csv -Path "$DestinationFolder\CpuSpecs.csv" -NoTypeInformation -Encoding UTF8 
 }
 catch {
     Write-Error "An error occurred: $_"
