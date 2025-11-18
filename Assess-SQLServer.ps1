@@ -96,16 +96,21 @@ SELECT TOP 10
     wait_time_ms,
     wait_time_ms / 1000 /60 AS wait_time_minutes,
     waiting_tasks_count,
-    CASE 
-        WHEN waiting_tasks_count > 0 THEN wait_time_ms / waiting_tasks_count ELSE 0 
+    CASE
+        WHEN NULLIF(waiting_tasks_count, 0) IS NOT NULL 
+        THEN wait_time_ms / NULLIF(waiting_tasks_count, 0) 
+        ELSE 0
     END AS avg_wait_time_ms,
     CAST(CAST(waiting_tasks_count AS FLOAT) / (SELECT UptimeInSeconds FROM Uptime) AS DECIMAL(18,2)) AS avg_waits_per_second,
-    CAST((CASE 
-        WHEN waiting_tasks_count > 0 THEN wait_time_ms / waiting_tasks_count ELSE 0 
+    CAST((CASE
+        WHEN NULLIF(waiting_tasks_count, 0) IS NOT NULL 
+        THEN wait_time_ms / NULLIF(waiting_tasks_count, 0) 
+        ELSE 0
     END) * (CAST(waiting_tasks_count AS FLOAT) / (SELECT UptimeInSeconds FROM Uptime)) AS DECIMAL(18,2)) AS potential_impact
 FROM sys.dm_os_wait_stats
 ORDER BY potential_impact DESC;
-"@
+"@ 
+
 
 $sqlfiles = @"
  SELECT
@@ -128,22 +133,23 @@ ORDER BY vfs.io_stall_read_ms DESC;
 "@
 
 $executionplan = @"
-SELECT 
+SELECT TOP 5000
     t.text AS sql_text,
     s.execution_count,
-    s.total_physical_reads / s.execution_count AS avg_physical_reads,
-    s.total_logical_reads / s.execution_count AS avg_logical_reads,
-    s.total_logical_writes / s.execution_count AS avg_logical_writes,
-    s.total_elapsed_time / s.execution_count AS [avg_execution_time],
-    s.total_worker_time / s.execution_count AS avg_CPU_Time,
-    s.total_grant_kb / s.execution_count AS avg_memory_grant,
+    s.total_physical_reads / NULLIF(s.execution_count,0) AS avg_physical_reads,
+    s.total_logical_reads / NULLIF(s.execution_count,0) AS avg_logical_reads,
+    s.total_logical_writes / NULLIF(s.execution_count,0) AS avg_logical_writes,
+    s.total_elapsed_time / NULLIF(s.execution_count,0) AS [avg_execution_time],
+    s.total_worker_time / NULLIF(s.execution_count,0) AS avg_CPU_Time,
+    s.total_grant_kb / NULLIF(s.execution_count,0) AS avg_memory_grant,
     s.max_physical_reads,
     s.min_physical_reads
 FROM sys.dm_exec_query_stats AS s
 CROSS APPLY sys.dm_exec_sql_text(s.sql_handle) AS t
 WHERE s.execution_count > 10
 ORDER BY avg_physical_reads DESC, avg_logical_writes DESC;
-"@
+"@ 
+
 
 $osinfo = @"
 SELECT 
