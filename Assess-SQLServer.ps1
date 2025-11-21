@@ -91,7 +91,7 @@ WITH Uptime AS (
     SELECT DATEDIFF(SECOND, sqlserver_start_time, GETDATE()) AS UptimeInSeconds
     FROM sys.dm_os_sys_info
 )
-SELECT TOP 10
+SELECT TOP 20
     wait_type,
     wait_time_ms,
     wait_time_ms / 1000 /60 AS wait_time_minutes,
@@ -184,7 +184,7 @@ SELECT
 FROM sys.dm_os_sys_memory;
 "@
 
-$diskIOperDB = @"
+$indexUsageProfile = @"
 WITH reads_and_writes AS (
 	SELECT db.name AS database_name,
 		SUM(user_seeks + user_scans + user_lookups) AS reads,
@@ -210,6 +210,26 @@ FROM sys.configurations
 WHERE name IN ('max degree of parallelism', 'cost threshold for parallelism');
 "@ 
 
+$sqlPhysicalIOperDB = @"
+SELECT
+    DB_NAME(mf.database_id) AS database_name,
+    SUM(vfs.num_of_reads) AS total_physical_reads,
+    SUM(vfs.num_of_writes) AS total_physical_writes,
+    SUM(vfs.num_of_reads + vfs.num_of_writes) AS total_io,
+    FORMAT(
+        (SUM(vfs.num_of_reads) * 1.0 / NULLIF(SUM(vfs.num_of_reads + vfs.num_of_writes), 0)), 'P'
+    ) AS reads_percent,
+    FORMAT(
+        (SUM(vfs.num_of_writes) * 1.0 / NULLIF(SUM(vfs.num_of_reads + vfs.num_of_writes), 0)), 'P'
+    ) AS writes_percent
+FROM sys.dm_io_virtual_file_stats(NULL, NULL) AS vfs
+JOIN sys.master_files AS mf
+    ON vfs.database_id = mf.database_id
+    AND vfs.file_id = mf.file_id
+GROUP BY mf.database_id
+ORDER BY total_io DESC;
+"@ 
+
 try {
 
     $sqlParams["Query"] = $waitstats
@@ -230,11 +250,14 @@ try {
     $sqlParams["Query"] = $memorystate
     Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerMemoryState.csv" -NoTypeInformation -Encoding UTF8
 
-    $sqlParams["Query"] = $diskIOperDB
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerIOstats.csv" -NoTypeInformation -Encoding UTF8
+    $sqlParams["Query"] = $indexUsageProfile
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerIndexUsageStats.csv" -NoTypeInformation -Encoding UTF8
 	
 	$sqlParams["Query"] = $sqlconfig
     Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerConfig.csv" -NoTypeInformation -Encoding UTF8
+
+	$sqlParams["Query"] = $sqlPhysicalIOperDB
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerPhysicalIO.csv" -NoTypeInformation -Encoding UTF8
 
     Get-CimInstance Win32_Processor | Select-Object Name, MaxClockSpeed | Export-Csv -Path "$DestinationFolder\CpuSpecs.csv" -NoTypeInformation -Encoding UTF8 
 }
