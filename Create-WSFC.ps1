@@ -18,7 +18,7 @@ An array of cluster node names (computer names) to add to the cluster.
 An array of IP addresses corresponding to cluster IP address resources.
 
 .EXAMPLE
-.\Create-WSFC.ps1 -WSFCClusterName "WSFC.cobra.kai" -ClusterNodes @("Node1","Node2") -ClusterIPs @("172.16.0.10","172.32.0.20")
+.\Create-WSFC.ps1 -WSFCClusterName "WSFC.cobra.kai" -ClusterNodes @("Node1.cobra.kai","Node2.cobra.kai") -ClusterIPs @("172.16.0.10","172.32.0.20")
 #>
 
 param (
