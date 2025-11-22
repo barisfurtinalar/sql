@@ -1,25 +1,40 @@
- <#
+<#
 .SYNOPSIS
-Creates and configures a Windows Server Failover Cluster (WSFC) with given cluster name, nodes, and IP addresses.
-This script:
-- Creates the cluster
-- Renames IP address resources to match their IP
-- Sets possible owners for each secondary IP exclusive to a single node (AWS compatible)
-- Sets cluster name resource dependencies on the IP addresses
-- Runs cluster validation tests
-Please make sure the order of cluster nodes and their IP Addresses are correct. (e.g. Node1 -> First IP Address in the list. Node2 -> Second IP Address and vice versa)
+Creates and configures a Windows Server Failover Cluster (WSFC) instance with the specified cluster name, domain, cluster nodes, and IP addresses.
+
+This script performs the following actions in order:
+- Creates the WSFC with Active Directory and DNS registration using provided cluster name and IP addresses.
+- Waits for the cluster to become accessible and stable before continuing.
+- Renames IP Address resources to the actual IP address values for clarity.
+- Renames the default cluster group and the cluster Network Name resource to the specified cluster name.
+- Ensures each IP address resource is owned exclusively by its corresponding cluster node, matching the order of the provided node and IP lists (important for AWS multi-IP configurations).
+- Sets the cluster name resource dependencies on all IP address resources (logical OR).
+- Runs cluster validation tests to confirm correct configuration.
+
+IMPORTANT:
+- The order of nodes and their corresponding IP addresses must match exactly. For example, the first node is owner of the first IP, second node owner of second IP, and so on.
+- The script assumes all nodes are online, reachable, domain joined, and have the Failover Clustering feature installed.
+- Intermittent sleep commands allow for cluster and resource state stabilization and should not be removed without adjusting for your environment.
 
 .PARAMETER WSFCClusterName
-The name of the failover cluster to create.
+The short name of the WSFC to create (without domain name).
+
+.PARAMETER DomainName
+The Active Directory domain name for fully-qualified cluster name construction.
 
 .PARAMETER ClusterNodes
-An array of cluster node names (computer names) to add to the cluster.
+An array of fully qualified domain names of nodes to add to the cluster.
 
 .PARAMETER ClusterIPs
-An array of IP addresses corresponding to cluster IP address resources.
+An array of IP addresses corresponding to cluster IP address resources, aligned in order with the nodes.
 
 .EXAMPLE
-.\Create-WSFC.ps1 -WSFCClusterName "WSFC1" -DomainName "cobra.kai" -ClusterNodes @("Node1.cobra.kai","Node2.cobra.kai") -ClusterIPs @("172.16.0.10","172.32.0.20")
+.\Create-WSFC.ps1 -WSFCClusterName "WSFC1" -DomainName "cobra.kai" `
+  -ClusterNodes @("Node1.cobra.kai","Node2.cobra.kai") `
+  -ClusterIPs @("172.16.0.10","172.32.0.20")
+
+This creates a two-node failover cluster with specified node domain names and IP addresses,
+renames resources accordingly, sets IP ownerships, updates dependencies, and validates the cluster.
 #>
 
 param (
