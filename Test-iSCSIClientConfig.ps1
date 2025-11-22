@@ -1,31 +1,42 @@
-$conn=Get-IscsiConnection | select ConnectionIdentifier, TargetAddress | Measure-Object
-$targetIP=Get-IscsiConnection | select TargetAddress 
-$mpioPolicy=Get-MSDSMGlobalDefaultLoadBalancePolicy
-[double]$number=($conn.count)
-$even = $number % 2
+ # Get iSCSI connection details
+$connections = Get-IscsiConnection
+if (!$connections) {
+    throw "No iSCSI connections found"
+}
 
-$targetIP = Get-IscsiConnection | select -ExpandProperty TargetAddress | Sort-Object | Get-Unique -AsString
+$connectionCount = ($connections | Measure-Object).Count
+$uniqueTargets = $connections | Select-Object -ExpandProperty TargetAddress | Sort-Object -Unique
+$targetCount = ($uniqueTargets | Measure-Object).Count
 
-if($conn.Count -gt 1){
-    Write-Output "###########"
-    Write-Output "OK - Number of iSCI sessions: $(($conn).Count)"
+# Check iSCSI target connection status
+$targetStatus = Get-IscsiTarget
+
+# Validate connections
+if ($connectionCount -ge 2) {
+    Write-Output "Multiple iSCSI sessions detected: $connectionCount session(s)"
+} else {
+    Write-Output "WARNING: Only $connectionCount iSCSI session(s) detected. Recommend multiple sessions for redundancy"
 }
-if((Get-IscsiTarget).IsConnected){
-    Write-Output "###########"
-    Write-Output "OK - iSCSI initiator is connected to target(s)"
+
+# Validate target connectivity
+if ($targetStatus.IsConnected) {
+    Write-Output "iSCSI initiator successfully connected to target(s)"
+} else {
+    Write-Output "ERROR: iSCSI initiator not connected to any targets"
 }
-if($targetIP.Count -gt 1){
-    Write-Output "###########"
-    Write-Output "OK - More than 2 iSCSI targets configured" 
-    Write-Output "###########"
+
+# Validate target count
+if ($targetCount -ge 2) {
+    Write-Output "Multiple iSCSI targets configured: $targetCount targets"
+    Write-Output " Target IPs: $($uniqueTargets -join ', ')"
+} else {
+    Write-Output "WARNING: Only $targetCount iSCSI target(s) detected. Recommend multiple targets for redundancy"
 }
-if($even -eq 0){
-    Write-Output "###########"
-    Write-Output "OK - Even Number of iSCI sessions"
-}
-else{
-    Write-Output "###########"
-    Write-Output "Warning - Not Even Number of iSCI sessions"
-}
-Write-Output "MPIO policy set to: $mpioPolicy"
-Write-Output "###########"  
+
+# Check MPIO policy
+try {
+    $mpioPolicy = Get-MSDSMGlobalDefaultLoadBalancePolicy
+    Write-Output "MPIO Load Balance Policy: $mpioPolicy"
+} catch {
+    Write-Output "MPIO policy check skipped - MPIO may not be installed"
+}  
