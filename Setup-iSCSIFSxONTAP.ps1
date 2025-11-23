@@ -71,19 +71,20 @@ if (-not (Get-MSDSMSupportedHW | Where-Object { $_.VendorId -eq "MSFT2005" -and 
 }
 
 # Establish multiple iSCSI connections per target portal based on ConnectionCount parameter
-foreach ($TargetPortalAddress in $TargetPortalAddresses) {
-    $targets = Get-IscsiTarget | Where-Object { $_.TargetPortalAddress -eq $TargetPortalAddress }
-    foreach ($target in $targets) {
-        Write-Host "Establishing up to $ConnectionCount connections to target portal $TargetPortalAddress"
-        1..$ConnectionCount | ForEach-Object {
-            if ($target.ConnectionState -ne "Connected") {
-                Write-Host "Connecting to iSCSI target: $($target.NodeAddress) (Session $_)"
-                Connect-IscsiTarget -NodeAddress $target.NodeAddress -IsMultipathEnabled $true `
-                    -TargetPortalAddress $TargetPortalAddress -InitiatorPortalAddress $LocaliSCSIAddress -IsPersistent $true
-            }
-        }
+ foreach ($TargetPortalAddress in $TargetPortalAddresses) {
+    Write-Host "Establishing up to $ConnectionCount connections to target portal $TargetPortalAddress"
+    $activeSessions = (Get-IscsiSession | Where-Object {$_.TargetPortalAddress -eq $TargetPortalAddress}).Count
+    $connectionsToCreate = $ConnectionCount - $activeSessions
+    if ($connectionsToCreate -le 0) {
+        Write-Host "Already have $activeSessions connections for portal $TargetPortalAddress. No new connections needed."
+        continue
     }
-}
+    1..$connectionsToCreate | ForEach-Object {
+        Write-Host "Connecting to iSCSI target via portal $TargetPortalAddress (Session $_)"
+        Get-IscsiTarget | Connect-IscsiTarget -IsMultipathEnabled $true -TargetPortalAddress $TargetPortalAddress -InitiatorPortalAddress $LocaliSCSIAddress -IsPersistent $true
+    }
+} 
+
 
 # Set the MPIO Load Balance Policy to Round Robin
 Write-Host "Setting MPIO load balancing policy to Round Robin"
