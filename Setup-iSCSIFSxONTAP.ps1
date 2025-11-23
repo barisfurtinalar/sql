@@ -71,6 +71,15 @@ if (-not (Get-MSDSMSupportedHW | Where-Object { $_.VendorId -eq "MSFT2005" -and 
 }
 
 # Establish multiple iSCSI connections per target portal based on ConnectionCount parameter
+
+$totalDesiredSessions = $ConnectionCount * $TargetPortalAddresses.Count
+$totalActiveSessions = (Get-IscsiSession).Count
+
+if ($totalActiveSessions -ge $totalDesiredSessions) {
+    Write-Host "Already have $totalActiveSessions active iSCSI sessions, which meets or exceeds the desired $ConnectionCount x $($TargetPortalAddresses.Count) = $totalDesiredSessions sessions."
+    Write-Host "Skipping new connection creation."
+    return
+} 
  foreach ($TargetPortalAddress in $TargetPortalAddresses) {
     Write-Host "Establishing up to $ConnectionCount connections to target portal $TargetPortalAddress"
     $activeSessions = (Get-IscsiSession | Where-Object {$_.TargetPortalAddress -eq $TargetPortalAddress}).Count
