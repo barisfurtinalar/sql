@@ -312,5 +312,33 @@ catch {
     Write-Error "An error occurred: $_"
     exit 1
 }
+ 
+try {
+
+    if ($IncludeTimestamp) {
+        $zipName = "$($server)-SQLAssessment_$((Get-Date -Format 'yyyyMMdd_HHmmss')).zip"
+    } else {
+        $zipName = "$($server)-SQLAssessment.zip"
+    }
+
+    $destinationZip = Join-Path -Path $DestinationFolder -ChildPath $zipName
+    # Create the zip file
+    Compress-Archive -Path "$DestinationFolder\*.csv" -DestinationPath $destinationZip -Force
+
+    # Verify zip file was created
+    if (Test-Path -Path $destinationZip) {
+        Write-Output "Successfully created zip file: $destinationZip"
+        Write-Output "Zip file size: $((Get-Item $destinationZip).Length / 1MB) MB"
+    }
+    else {
+        throw "Failed to create zip file"
+    }
+}
+catch {
+    Write-Error "An error occurred: $_"
+    exit 1
+}
+
+  
 
  
