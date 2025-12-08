@@ -23,9 +23,9 @@
 .PARAMETER SqlPassword
     The SQL login password to use when SQL authentication is enabled.
 .EXAMPLE
-    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -IncludeTimestamp
+    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "node1.cobra.kai" -IncludeTimestamp
 .EXAMPLE
-    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "listener1.cobra.kai" -UseSqlAuthentication -SqlUser "sa" -SqlPassword "YourPassword!" -IncludeTimestamp 
+    .\Assess-SQLServer.ps1 -DestinationFolder "C:\Temp" -server "node1.cobra.kai" -UseSqlAuthentication -SqlUser "sa" -SqlPassword "YourPassword!" -IncludeTimestamp 
 #>
 #Requires -RunAsAdministrator
 param(
@@ -91,7 +91,7 @@ WITH Uptime AS (
     SELECT DATEDIFF(SECOND, sqlserver_start_time, GETDATE()) AS UptimeInSeconds
     FROM sys.dm_os_sys_info
 )
-SELECT TOP 20
+SELECT TOP 30
     wait_type,
     wait_time_ms,
     wait_time_ms / 1000 /60 AS wait_time_minutes,
@@ -110,7 +110,6 @@ SELECT TOP 20
 FROM sys.dm_os_wait_stats
 ORDER BY potential_impact DESC;
 "@ 
-
 
 $sqlfiles = @"
  SELECT
@@ -133,7 +132,7 @@ ORDER BY vfs.io_stall_read_ms DESC;
 "@
 
 $executionplan = @"
-SELECT TOP 5000
+SELECT TOP 1000
     t.text AS sql_text,
     s.execution_count,
     s.total_physical_reads / NULLIF(s.execution_count,0) AS avg_physical_reads,
@@ -149,7 +148,6 @@ CROSS APPLY sys.dm_exec_sql_text(s.sql_handle) AS t
 WHERE s.execution_count > 10
 ORDER BY avg_physical_reads DESC, avg_logical_writes DESC;
 "@ 
-
 
 $osinfo = @"
 SELECT 
@@ -230,65 +228,91 @@ GROUP BY mf.database_id
 ORDER BY total_io DESC;
 "@ 
 
+$sqlHAConfig = @"
+SELECT 
+    'Availability Group' AS HA_Type,
+    ag.name AS AG_Name,
+    ar.replica_server_name AS Server_Name,
+    ar.availability_mode_desc AS Availability_Mode,
+    ar.failover_mode_desc AS Failover_Mode,
+    ars.role_desc AS Current_Role,
+    ars.operational_state_desc AS Operational_State,
+    ars.connected_state_desc AS Connected_State,
+    ars.synchronization_health_desc AS Sync_Health
+FROM sys.availability_groups ag
+INNER JOIN sys.availability_replicas ar ON ag.group_id = ar.group_id
+INNER JOIN sys.dm_hadr_availability_replica_states ars ON ar.replica_id = ars.replica_id
+WHERE ar.replica_server_name = @@SERVERNAME
+UNION ALL
+SELECT 
+    'Failover Cluster Instance' AS HA_Type,
+    NodeName AS AG_Name,
+    NodeName AS Server_Name,
+    'N/A' AS Availability_Mode,
+    'N/A' AS Failover_Mode,
+    CASE 
+        WHEN status_description = 'up' THEN 'ACTIVE'
+        ELSE 'PASSIVE'
+    END AS Current_Role,
+    status_description AS Operational_State,
+    'N/A' AS Connected_State,
+    'N/A' AS Sync_Health
+FROM sys.dm_os_cluster_nodes
+WHERE NodeName = CAST(SERVERPROPERTY('ComputerNamePhysicalNetBIOS') AS NVARCHAR(128))
+UNION ALL
+SELECT 
+    'Standalone Instance' AS HA_Type,
+    @@SERVERNAME AS AG_Name,
+    @@SERVERNAME AS Server_Name,
+    'N/A' AS Availability_Mode,
+    'N/A' AS Failover_Mode,
+    'N/A' AS Current_Role,
+    'N/A' AS Operational_State,
+    'N/A' AS Connected_State,
+    'N/A' AS Sync_Health
+WHERE NOT EXISTS (SELECT 1 FROM sys.availability_groups)
+  AND NOT EXISTS (SELECT 1 FROM sys.dm_os_cluster_nodes);
+"@
+
 try {
 
     $sqlParams["Query"] = $waitstats
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerWaitStats.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerWaitStats.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $sqlfiles
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerFiles.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerFiles.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $executionplan
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerExecutionPlanStats.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerExecutionPlanStats.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $osinfo
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerOSinfo.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerOSinfo.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $sqlinfo
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerInfo.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerInfo.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $memorystate
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerMemoryState.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerMemoryState.csv" -NoTypeInformation -Encoding UTF8
 
     $sqlParams["Query"] = $indexUsageProfile
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerIndexUsageStats.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerIndexUsageStats.csv" -NoTypeInformation -Encoding UTF8
 	
 	$sqlParams["Query"] = $sqlconfig
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerConfig.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerConfig.csv" -NoTypeInformation -Encoding UTF8
 
 	$sqlParams["Query"] = $sqlPhysicalIOperDB
-    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\SQLServerPhysicalIO.csv" -NoTypeInformation -Encoding UTF8
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerPhysicalIO.csv" -NoTypeInformation -Encoding UTF8
+    
+	$sqlParams["Query"] = $sqlHAConfig
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerHAConfig.csv" -NoTypeInformation -Encoding UTF8
 
-    Get-CimInstance Win32_Processor | Select-Object Name, MaxClockSpeed | Export-Csv -Path "$DestinationFolder\CpuSpecs.csv" -NoTypeInformation -Encoding UTF8 
+    Get-CimInstance Win32_Processor | Select-Object Name, MaxClockSpeed | Export-Csv -Path "$DestinationFolder\$($server)-CpuSpecs.csv" -NoTypeInformation -Encoding UTF8 
 }
 catch {
     Write-Error "An error occurred: $_"
     exit 1
 }
 
-try {
+try { 
 
-    if ($IncludeTimestamp) {
-        $zipName = "SQLAssessment_$((Get-Date -Format 'yyyyMMdd_HHmmss')).zip"
-    } else {
-        $zipName = "SQLAssessment.zip"
-    }
-
-    $destinationZip = Join-Path -Path $DestinationFolder -ChildPath $zipName
-    # Create the zip file
-    Compress-Archive -Path "$DestinationFolder\*.csv" -DestinationPath $destinationZip -Force
-
-    # Verify zip file was created
-    if (Test-Path -Path $destinationZip) {
-        Write-Output "Successfully created zip file: $destinationZip"
-        Write-Output "Zip file size: $((Get-Item $destinationZip).Length / 1MB) MB"
-    }
-    else {
-        throw "Failed to create zip file"
-    }
-}
-catch {
-    Write-Error "An error occurred: $_"
-    exit 1
-}
  
