@@ -274,6 +274,30 @@ WHERE NOT EXISTS (SELECT 1 FROM sys.availability_groups)
   AND NOT EXISTS (SELECT 1 FROM sys.dm_os_cluster_nodes);
 "@
 
+$sqlCPUUtilisation = @"
+DECLARE @ts_now bigint = (SELECT cpu_ticks/(cpu_ticks/ms_ticks) FROM sys.dm_os_sys_info);
+SELECT TOP 256
+    DATEADD(ms, -1 * (@ts_now - [timestamp]), GETDATE()) AS EventTime,
+    SQLProcessUtilization AS SQL_CPU_Usage,
+    SystemIdle AS System_Idle,
+    100 - SystemIdle - SQLProcessUtilization AS Other_Process_CPU_Usage
+FROM (
+    SELECT 
+        record.value('(./Record/@id)[1]', 'int') AS record_id,
+        record.value('(./Record/SchedulerMonitorEvent/SystemHealth/SystemIdle)[1]', 'int') AS SystemIdle,
+        record.value('(./Record/SchedulerMonitorEvent/SystemHealth/ProcessUtilization)[1]', 'int') AS SQLProcessUtilization,
+        timestamp
+    FROM (
+        SELECT timestamp, CONVERT(xml, record) AS record
+        FROM sys.dm_os_ring_buffers
+        WHERE ring_buffer_type = N'RING_BUFFER_SCHEDULER_MONITOR'
+        AND record LIKE '%<SystemHealth>%'
+    ) AS x
+) AS y
+ORDER BY record_id DESC;
+"@ 
+
+
 try {
 
     $sqlParams["Query"] = $waitstats
@@ -305,6 +329,9 @@ try {
     
 	$sqlParams["Query"] = $sqlHAConfig
     Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLServerHAConfig.csv" -NoTypeInformation -Encoding UTF8
+
+	$sqlParams["Query"] = $sqlCPUUtilisation
+    Invoke-Sqlcmd @sqlParams | Export-Csv -Path "$DestinationFolder\$($server)-SQLCPUUtilisation.csv" -NoTypeInformation -Encoding UTF8 
 
     Get-CimInstance Win32_Processor | Select-Object Name, MaxClockSpeed | Export-Csv -Path "$DestinationFolder\$($server)-CpuSpecs.csv" -NoTypeInformation -Encoding UTF8 
 }
