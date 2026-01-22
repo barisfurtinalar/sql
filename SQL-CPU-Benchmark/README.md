@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SQL Server CPU Benchmark Tool
 
 A PowerShell-based tool to benchmark SQL Server CPU performance across different servers and compare results.
