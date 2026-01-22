@@ -149,30 +149,43 @@ function New-ComparisonReport {
     }
     
     # Build labels string (PowerShell 5.1 compatible)
-    $labelsArray = $testNames | ForEach-Object { "'$_'" }
-    $labelsString = $labelsArray -join ', '
+    # Separate throughput tests (MB/s) from operations tests (iter/sec, rows/sec)
+    $throughputTests = @('Compression_Test', 'Memory_Bandwidth')
+    $operationsTests = $testNames | Where-Object { $_ -notin $throughputTests }
+    
+    $operationsLabelsArray = $operationsTests | ForEach-Object { "'$_'" }
+    $operationsLabelsString = $operationsLabelsArray -join ', '
+    
+    $throughputLabelsArray = $throughputTests | Where-Object { $_ -in $testNames } | ForEach-Object { "'$_'" }
+    $throughputLabelsString = $throughputLabelsArray -join ', '
     
     $html += @"
     </table>
     
-    <h2>Performance Chart</h2>
+    <h2>Performance Chart (Operations/sec)</h2>
     <div class="chart-container">
-        <canvas id="benchmarkChart" width="800" height="400"></canvas>
+        <canvas id="operationsChart" width="800" height="400"></canvas>
+    </div>
+    
+    <h2>Throughput Chart (MB/s)</h2>
+    <div class="chart-container">
+        <canvas id="throughputChart" width="800" height="400"></canvas>
     </div>
     
     <script>
-        const ctx = document.getElementById('benchmarkChart').getContext('2d');
-        new Chart(ctx, {
+        // Operations Chart (iter/sec, rows/sec)
+        const ctxOps = document.getElementById('operationsChart').getContext('2d');
+        new Chart(ctxOps, {
             type: 'bar',
             data: {
-                labels: [$labelsString],
+                labels: [$operationsLabelsString],
                 datasets: [
 "@
     
     $colors = @('#0078d4', '#00a86b', '#ff6b6b', '#ffd93d', '#6c5ce7', '#a29bfe')
     $i = 0
     foreach ($machine in $byMachine) {
-        $data = $testNames | ForEach-Object { 
+        $data = $operationsTests | ForEach-Object { 
             $val = $comparison[$_][$machine.Name]
             if ($val) { $val } else { 0 }
         }
@@ -192,8 +205,70 @@ function New-ComparisonReport {
             },
             options: {
                 responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'CPU, String, Hash, Parallel, Sort, Index Tests'
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: { 
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Operations per Second'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Throughput Chart (MB/s)
+        const ctxThroughput = document.getElementById('throughputChart').getContext('2d');
+        new Chart(ctxThroughput, {
+            type: 'bar',
+            data: {
+                labels: [$throughputLabelsString],
+                datasets: [
+"@
+    
+    $i = 0
+    foreach ($machine in $byMachine) {
+        $throughputTestsInResults = $throughputTests | Where-Object { $_ -in $testNames }
+        $data = $throughputTestsInResults | ForEach-Object { 
+            $val = $comparison[$_][$machine.Name]
+            if ($val) { $val } else { 0 }
+        }
+        $color = $colors[$i % $colors.Count]
+        $html += @"
+                    {
+                        label: '$($machine.Name)',
+                        data: [$($data -join ', ')],
+                        backgroundColor: '$color'
+                    },
+"@
+        $i++
+    }
+    
+    $html += @"
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Compression and Memory Bandwidth Tests'
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Throughput (MB/s)'
+                        }
+                    }
                 }
             }
         });
